@@ -2,20 +2,39 @@
 <html>
 <head>
 <title>Galactic Target Practice</title>
+<meta name="Galactic-Target-Practice" description="Basic shooting Vr Game">
 <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-particle-system-component@1.2.x/dist/aframe-particle-system-component.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.5.0/dist/aframe-extras.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@fern-solutions/aframe-sky-background/dist/sky-background.umd.min.js"></script>
+<script src="https://unpkg.com/aframe-event-set-component@4.2.1/dist/aframe-event-set-component.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/aframe-blink-controls/dist/aframe-blink-controls.min.js"></script>
+<script src="script.js"></script>
 </head>
 <body>
 
 <a-scene>
 	<a-assets>
-		<img id="space" src="test2.jpg">
-
+		<img id="space" src="images/space.jpg">
+		<img id="floor1" src="images/floor1.jpg">
+		<img id="floor2" src="images/floor2.jpg">
+		<img id="floor3" src="images/floor3.png">
+		<img id="floor4" src="images/floor4.png">
+		<img id="floor5" src="images/floor5.png">
+		<audio id="shoot1_sound" src="sounds/shoot1.wav"></audio>
+		<a-asset-item id="drone" src="models/drone2.glb"></a-asset-item>
+		
 	</a-assets>
+	<a-plane src="#floor5" material="repeat: 10 10; roughness:0.7 " height="30" width="30" rotation="-90 0 0" position="0 0 -4" shadow="receive:true;"></a-plane>
 	<a-sky src="#space" color="#FFF"></a-sky>
+	<a-cube id="player"></a-cube>
 <a-entity light="type: ambient; color: #BBB;"></a-entity>
 <a-entity light="type: directional; color:#FFF; intensity:0.6;" position="-0.5 1 1"></a-entity>
-<a-camera>
-	<a-cursor color="#0000FF"></a-cursor>
+<a-gltf-model class="enemy" position="0 1.2 -3" scale="0.06 0.06 0.06" shadow="cast:true;" src="#drone"
+enemy></a-gltf-model>
+<a-entity id="teleHand" hand-controls="hand: left" blink-controls="collisionEntities: [mixin='.enemy'], #floor5"></a-entity>
+<a-entity id="blockHand" hand-controls="hand: right" laser-controls raycaster="near: 0.5" intersection-spawn="event: click; mixin: voxel"></a-entity><a-camera>
+	<a-cursor raycaster="objects: .enemy;showLine:true;" cursor="rayOrigin: mouse; fuse:false;"  color="#0000FF"></a-cursor>
 </a-camera>
 
 </a-scene>
