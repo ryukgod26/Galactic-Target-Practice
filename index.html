@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Galactic Target Practice</title>
+<script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
+</head>
+<body>
+
+<a-scene>
+	<a-assets>
+		<img id="space" src="test2.jpg">
+
+	</a-assets>
+	<a-sky src="#space" color="#FFF"></a-sky>
+<a-entity light="type: ambient; color: #BBB;"></a-entity>
+<a-entity light="type: directional; color:#FFF; intensity:0.6;" position="-0.5 1 1"></a-entity>
+<a-camera>
+	<a-cursor color="#0000FF"></a-cursor>
+</a-camera>
+
+</a-scene>
+</body>
+</html>
