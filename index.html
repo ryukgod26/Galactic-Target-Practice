@@ -9,11 +9,12 @@
 <script src="https://cdn.jsdelivr.net/npm/@fern-solutions/aframe-sky-background/dist/sky-background.umd.min.js"></script>
 <script src="https://unpkg.com/aframe-event-set-component@4.2.1/dist/aframe-event-set-component.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/aframe-blink-controls/dist/aframe-blink-controls.min.js"></script>
+<script src="https://unpkg.com/@c-frame/aframe-physics-system@4.2.2/dist/aframe-physics-system.min.js"></script>
 <script src="script.js"></script>
 </head>
 <body>
 
-<a-scene>
+<a-scene driver="ammo" physics="debug:true">
 	<a-assets>
 		<img id="space" src="images/space.jpg">
 		<img id="floor1" src="images/floor1.jpg">
@@ -22,21 +23,39 @@
 		<img id="floor4" src="images/floor4.png">
 		<img id="floor5" src="images/floor5.png">
 		<audio id="shoot1_sound" src="sounds/shoot1.wav"></audio>
-		<a-asset-item id="drone" src="models/drone2.glb"></a-asset-item>
+		<a-asset-item id="drone" src="models/VR DRONE.glb"></a-asset-item>
 		
 	</a-assets>
-	<a-plane src="#floor5" material="repeat: 10 10; roughness:0.7 " height="30" width="30" rotation="-90 0 0" position="0 0 -4" shadow="receive:true;"></a-plane>
-	<a-sky src="#space" color="#FFF"></a-sky>
-	<a-cube id="player"></a-cube>
-<a-entity light="type: ambient; color: #BBB;"></a-entity>
+	<!-- lights -->
+	 <a-entity light="type: ambient; color: #BBB;"></a-entity>
 <a-entity light="type: directional; color:#FFF; intensity:0.6;" position="-0.5 1 1"></a-entity>
-<a-gltf-model class="enemy" position="0 1.2 -3" scale="0.06 0.06 0.06" shadow="cast:true;" src="#drone"
-enemy></a-gltf-model>
-<a-entity id="teleHand" hand-controls="hand: left" blink-controls="collisionEntities: [mixin='.enemy'], #floor5"></a-entity>
-<a-entity id="blockHand" hand-controls="hand: right" laser-controls raycaster="near: 0.5" intersection-spawn="event: click; mixin: voxel"></a-entity><a-camera>
-	<a-cursor raycaster="objects: .enemy;showLine:true;" cursor="rayOrigin: mouse; fuse:false;"  color="#0000FF"></a-cursor>
+
+<!-- <a-entity id="teleHand" hand-controls="hand: left" blink-controls="collisionEntities: [mixin='.enemy'], #floor5"></a-entity>
+<a-entity id="blockHand" hand-controls="hand: right" laser-controls` raycaster="near: 0.5" intersection-spawn="event: click; mixin: voxel"></a-entity> -->
+
+	<a-camera  id="player">
+	<a-cursor raycaster="objects: .enemy;showLine:true;" cursor=" fuse:false;"  color="#0000FF"></a-cursor>
 </a-camera>
 
+<a-entity dynamic-body="mass:2; shape:box; linearDamping:0.05; angularDamping:0.9" position="-5 5 -9" class="enemy" enemy>
+<a-gltf-model  position="0 0 0"  scale="0.06 0.06 0.06" shadow="cast:true" src="#drone"></a-gltf-model>
+</a-entity>
+
+<a-entity dynamic-body="mass:2; shape:box; linearDamping:0.05; angularDamping:0.9" position="0 1.2 -7" class="enemy"   enemy
+event-set__mouseenter="color:#FF00FF;"
+event-set__mouseleave="color:#0000FF"
+>
+<a-gltf-model id="first" position="0 0 0"  scale="0.09 0.09 0.09" shadow="cast:true;" src="#drone"></a-gltf-model>
+
+</a-entity>
+
+
+
+
+	<a-plane static-body src="#floor5" material="repeat: 10 10; roughness:0.7 " height="30" width="30" rotation="-90 0 0" position="0 0 -4" shadow="receive:true;"></a-plane>
+	<a-sky src="#space" color="#FFF"></a-sky>
+	
 </a-scene>
+<h4>Credits:VR DRONE by Dave404 [CC-BY] via Poly Pizza</h4>
 </body>
 </html>
