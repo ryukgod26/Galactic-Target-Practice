@@ -268,21 +268,97 @@ AFRAME.registerSystem('bullet', {
       j.speed = elmData.speed;
       j.time = 0;
 
+      j.visible = !1;
+      this.pool[elmData.name].push(j);
+
     }
     }
 
   },
-  update: function () {
-    // Do something when component's data is updated.
+
+  registerTarget : function(e){
+    let i;
+    this.targets.push(e.el);
   },
 
-  remove: function () {
-    // Do something the component or its entity is detached.
+  //finding a bullet from the pool and shooting it
+  shoot : function(e,t){
+let i;
+n= 0;
+l= 0;
+pool = this.pool[e];
+if(void 0 === pool) return null;
+
+ // Find an invisible (inactive) bullet to reuse
+for(i =0;i<pool.length;i++){
+  if (!1 === pool[i].visible) return this.shootBullet(pool[i],t)
+}
+
+// If all are active, reuse the one that has been alive the longest
+pool[i].time > l && ((n =0) , (l=pool[i].time));
+return this.shootBullet(o[n],t);
   },
 
-  tick: function (time, timeDelta) {
-    // Do something on every scene tick or frame.
+  shootBullet:function(e,t){
+e.visible = !0;
+e.time =0;
+t.getWorldPosition(e.position);
+t.getWorldDirection(e.direction);
+e.direction.multiplyScalar(-e.speed);
+this.container.add(e);
+return e;
   }
+  ,
+
+
+  tick: (function () {
+        var e = new THREE.Box3(),
+          t = new THREE.Vector3(),
+          i = new THREE.Box3();
+        return function (n, l) {
+          var o, r, s, a, u;
+          // Loop through all active bullets
+          for (r = 0; r < this.container.children.length; r++)
+            if ((o = this.container.children[r]).visible)
+              if (((o.time += l), o.time >= o.maxTime)) {
+                // Deactivate bullet if its lifetime expires
+                this.killBullet(o);
+              } else {
+                // Update bullet position
+                t.copy(o.direction).multiplyScalar(l / 850);
+                o.position.add(t);
+
+                // Get the bullet's current bounding box for collision detection
+                e.setFromObject(o);
+
+                // Check for collision against all targets
+                for (u = 0; u < this.targets.length; u++) {
+                  let t = this.targets[u];
+                  if (
+                    t.getAttribute("target").active &&
+                    (a = t.object3D).visible
+                  ) {
+                    s = !1;
+                    // Check for intersection
+                    a.boundingBox
+                      ? (s = a.boundingBox.intersectsBox(e))
+                      : (i.setFromObject(a), (s = i.intersectsBox(e)));
+
+                    if (s) {
+                      this.killBullet(o); // Deactivate bullet on hit
+                      t.components.target.onBulletHit(o); // Notify the target
+                      t.emit("hit", null); // Emit a general 'hit' event
+                      break; // Stop checking other targets for this bullet
+                    }
+                  }
+                }
+              }
+        };
+      })(),
+          // Deactivates a bullet, returning it to the pool
+      killBullet: function (e) {
+        e.visible = !1;
+      },
 });
 
 
