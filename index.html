@@ -14,7 +14,7 @@
 </head>
 <body>
 
-<a-scene driver="ammo" physics="debug:true">
+<a-scene >
 	<a-assets>
 		<img id="space" src="images/space.jpg">
 		<img id="floor1" src="images/floor1.jpg">
@@ -23,8 +23,9 @@
 		<img id="floor4" src="images/floor4.png">
 		<img id="floor5" src="images/floor5.png">
 		<audio id="shoot1_sound" src="sounds/shoot1.wav"></audio>
+		<a-gltf-model id="bullet" src="models/bullet.glb"></a-gltf-model>
 		<a-asset-item id="drone" src="models/VR DRONE.glb"></a-asset-item>
-		
+		 <a-asset-item id="playerModel" src="models/player.glb"></a-asset-item>
 	</a-assets>
 	<!-- lights -->
 	 <a-entity light="type: ambient; color: #BBB;"></a-entity>
@@ -33,15 +34,26 @@
 <!-- <a-entity id="teleHand" hand-controls="hand: left" blink-controls="collisionEntities: [mixin='.enemy'], #floor5"></a-entity>
 <a-entity id="blockHand" hand-controls="hand: right" laser-controls` raycaster="near: 0.5" intersection-spawn="event: click; mixin: voxel"></a-entity> -->
 
-	<a-camera  id="player">
+<!-- <a-entity id="player" 	 dynamic-body player-controls position="0 1.6 0">
+	<a-camera src="#playerModel">
 	<a-cursor raycaster="objects: .enemy;showLine:true;" cursor=" fuse:false;"  color="#0000FF"></a-cursor>
 </a-camera>
+</a-entity>   -->
+<a-entity id="player" 
+                  player-controls 
+                  position="0 1.6 0">
+            <a-gltf-model src="#playerModel" scale="0.5 0.5 0.5"></a-gltf-model>
+            <a-camera>
+                <a-cursor></a-cursor>
+            </a-camera>
+        </a-entity>
 
-<a-entity dynamic-body="mass:2; shape:box; linearDamping:0.05; angularDamping:0.9" position="-5 5 -9" class="enemy" enemy>
+<!-- dynamic-body="mass:2; shape:box; linearDamping:0.05; angularDamping:0.9" -->
+<a-entity  position="-5 5 -9" class="enemy" enemy>
 <a-gltf-model  position="0 0 0"  scale="0.06 0.06 0.06" shadow="cast:true" src="#drone"></a-gltf-model>
 </a-entity>
 
-<a-entity dynamic-body="mass:2; shape:box; linearDamping:0.05; angularDamping:0.9" position="0 1.2 -7" class="enemy"   enemy
+<a-entity  position="0 1.2 -7" class="enemy"   enemy
 event-set__mouseenter="color:#FF00FF;"
 event-set__mouseleave="color:#0000FF"
 >
@@ -52,7 +64,7 @@ event-set__mouseleave="color:#0000FF"
 
 
 
-	<a-plane static-body src="#floor5" material="repeat: 10 10; roughness:0.7 " height="30" width="30" rotation="-90 0 0" position="0 0 -4" shadow="receive:true;"></a-plane>
+	<a-plane  src="#floor5" material="repeat: 10 10; roughness:0.7 " height="30" width="30" rotation="-90 0 0" position="0 0 -4" shadow="receive:true;"></a-plane>
 	<a-sky src="#space" color="#FFF"></a-sky>
 	
 </a-scene>
