@@ -14,7 +14,7 @@
 </head>
 <body>
 
-<a-scene physics>
+<a-scene game-manager physics="debug:true">
 	<a-assets>
 		<img id="space" src="images/space.jpg">
 		<img id="floor1" src="images/floor1.jpg">
@@ -40,10 +40,12 @@
 </a-camera>
 </a-entity>   -->
 <a-entity id="player" 
-                  player-controls 
+ dynamic-body="shape: capsule; mass: 5;linearDamping:0; angularDamping: 1"
+                  player
                   position="0 1.6 0">
-            <a-gltf-model src="#playerModel" scale="0.5 0.5 0.5"></a-gltf-model>
+           
 			<a-camera shooter click-to-shoot>
+				 <a-gltf-model src="#playerModel" scale="0.05 0.05 0.05" position="0 -1.6 0"></a-gltf-model>
                 <a-cursor></a-cursor>
             </a-camera>
         </a-entity>
@@ -53,18 +55,25 @@
 <a-gltf-model  position="0 0 0"  scale="0.06 0.06 0.06" shadow="cast:true" src="#drone"></a-gltf-model>
 </a-entity>
 
-<a-entity  position="0 1.2 -7" class="enemy"   enemy
+<a-entity dynamic-body position="0 1.2 -20" class="enemy"   enemy
 event-set__mouseenter="color:#FF00FF;"
 event-set__mouseleave="color:#0000FF"
 >
 <a-gltf-model id="first" position="0 0 0"  scale="0.09 0.09 0.09" shadow="cast:true;" src="#drone"></a-gltf-model>
-
+</a-entity>
+<!-- Game Over UI -->
+<a-entity id="game-over-ui" position="0 1.6 -2" visible="false">
+    <a-text value="Game Over" align="center" color="white" width="4"></a-text>
+    <a-text id="score-text" value="Your Score: 0" position="0 -0.2 0" align="center" color="white" width="3"></a-text>
+    <a-text id="high-score-text" value="High Score: 0" position="0 -0.4 0" align="center" color="white" width="3"></a-text>
+    <a-entity id="restart-button" geometry="primitive: plane; width: 0.8; height: 0.3" material="color: #4CC3D9" position="0 -0.7 0">
+        <a-text value="Restart" align="center" color="white" width="2"></a-text>
+    </a-entity>
 </a-entity>
 
 
 
-
-	<a-plane  src="#floor5" material="repeat: 10 10; roughness:0.7 " height="30" width="30" rotation="-90 0 0" position="0 0 -4" shadow="receive:true;"></a-plane>
+	<a-plane static-body  src="#floor5" material="repeat: 10 10; roughness:0.7 " height="50" width="50" rotation="-90 0 0" position="0 0 -4" shadow="receive:true;"></a-plane>
 	<a-sky src="#space" color="#FFF"></a-sky>
 	
 </a-scene>
