@@ -48,6 +48,7 @@ if(this.data.health <= 0){
         this.el.body.setLinearVelocity(new Ammo.btVector3(0,0,0));
         this.el.body.setAngularVelocity(new Ammo.btVector3(0,0,0));
       }
+      this.el.parentNode.removeChild(this.el);
 }
 else{
     console.log(`Enemy Health is ${this.data.health}`);
@@ -127,44 +128,48 @@ console.log('Player has collided with ',event.detail.body.el);
   }
 });
 
-const SHOOT_SOUND = 'sounds/shoot1.wav'; // Path to the shooting sound
+// const SHOOT_SOUND = 'sounds/shoot1.wav'; // Path to the shooting sound
 
-AFRAME.registerComponent('shoot', {
-  schema: {
-    projectile: { type: 'string', default: '#bullet' },
-    speed: { type: 'number', default: 10 }
-  },
+// AFRAME.registerComponent('shoot', {
+//   schema: {
+//     projectile: { type: 'string', default: '#bullet' },
+//     speed: { type: 'number', default: 10 }
+//   },
 
-  init: function () {
-    this.shootSound = new Audio(SHOOT_SOUND);
-    this.shootSound.volume = 0.5;
-    this.el.addEventListener('shoot', this.shoot.bind(this));
-  },
+//   init: function () {
+//     this.shootSound = new Audio(SHOOT_SOUND);
+//     this.shootSound.volume = 0.5;
+//     this.el.addEventListener('shoot', this.shoot.bind(this));
+//   },
 
-  shoot: function () {
-    const projectile = document.createElement('a-entity');
-    projectile.setAttribute('geometry', { primitive: 'sphere', radius: 0.1 });
-    projectile.setAttribute('material', { color: '#FF0000' });
-    projectile.setAttribute('position', this.el.getAttribute('position'));
-    projectile.setAttribute('dynamic-body', { mass: 1 });
+//   shoot: function () {
+
     
-    const direction = new THREE.Vector3();
-    this.el.object3D.getWorldDirection(direction);
-    direction.multiplyScalar(this.data.speed);
+//     const projectile = document.createElement('a-entity');
+//     console.log('Shooting the projectile');
+
+//     projectile.setAttribute('geometry', { primitive: 'sphere', radius: 0.1 });
+//     projectile.setAttribute('material', { color: '#FF0000' });
+//     projectile.setAttribute('position', this.el.getAttribute('position'));
+//     projectile.setAttribute('dynamic-body', { mass: 1 });
     
-    projectile.body.velocity.set(direction.x, direction.y, direction.z);
+//     const direction = new THREE.Vector3();
+//     this.el.object3D.getWorldDirection(direction);
+//     direction.multiplyScalar(this.data.speed);
     
-    this.el.sceneEl.appendChild(projectile);
-    this.shootSound.play();
+//     projectile.body.velocity.set(direction.x, direction.y, direction.z);
     
-    // Remove projectile after 2 seconds
-    setTimeout(() => {
-      if (projectile.parentNode) {
-        projectile.parentNode.removeChild(projectile);
-      }
-    }, 2000);
-  }
-});
+//     this.el.sceneEl.appendChild(projectile);
+//     this.shootSound.play();
+    
+//     // Remove projectile after 2 seconds
+//     setTimeout(() => {
+//       if (projectile.parentNode) {
+//         projectile.parentNode.removeChild(projectile);
+//       }
+//     }, 2000);
+//   }
+// });
 
 AFRAME.registerComponent('shooter', {
   schema: {
@@ -237,10 +242,20 @@ AFRAME.registerComponent('bullet', {
   }
 });
 
-//Manages all Bullets,Targets, and collision Detections.
-AFRAME.registerSystem('bullet', {
-  
+AFRAME.registerComponent('click-to-shoot', {
 
+  init: function () {
+    this.el.addEventListener('mousedown', () => {
+      this.el.emit('shoot');
+    });
+  }
+
+
+});
+
+
+AFRAME.registerComponent('hit-handler', {
+  dependencies: ['material'],
   init: function () {
     let e;
     (e = document.createElement('a-entity')).id = 'shooterBulletContainer';
@@ -268,99 +283,22 @@ AFRAME.registerSystem('bullet', {
       j.speed = elmData.speed;
       j.time = 0;
 
-      j.visible = !1;
-      this.pool[elmData.name].push(j);
-
     }
     }
 
   },
-
-  registerTarget : function(e){
-    let i;
-    this.targets.push(e.el);
+  update: function () {
+    // Do something when component's data is updated.
   },
 
-  //finding a bullet from the pool and shooting it
-  shoot : function(e,t){
-let i;
-n= 0;
-l= 0;
-pool = this.pool[e];
-if(void 0 === pool) return null;
-
- // Find an invisible (inactive) bullet to reuse
-for(i =0;i<pool.length;i++){
-  if (!1 === pool[i].visible) return this.shootBullet(pool[i],t)
-}
-
-// If all are active, reuse the one that has been alive the longest
-pool[i].time > l && ((n =0) , (l=pool[i].time));
-return this.shootBullet(o[n],t);
+  remove: function () {
+    // Do something the component or its entity is detached.
   },
 
-  shootBullet:function(e,t){
-e.visible = !0;
-e.time =0;
-t.getWorldPosition(e.position);
-t.getWorldDirection(e.direction);
-e.direction.multiplyScalar(-e.speed);
-this.container.add(e);
-return e;
+  tick: function (time, timeDelta) {
+    // Do something on every scene tick or frame.
   }
-  ,
-
-
-  tick: (function () {
-        var e = new THREE.Box3(),
-          t = new THREE.Vector3(),
-          i = new THREE.Box3();
-        return function (n, l) {
-          var o, r, s, a, u;
-          // Loop through all active bullets
-          for (r = 0; r < this.container.children.length; r++)
-            if ((o = this.container.children[r]).visible)
-              if (((o.time += l), o.time >= o.maxTime)) {
-                // Deactivate bullet if its lifetime expires
-                this.killBullet(o);
-              } else {
-                // Update bullet position
-                t.copy(o.direction).multiplyScalar(l / 850);
-                o.position.add(t);
-
-                // Get the bullet's current bounding box for collision detection
-                e.setFromObject(o);
-
-                // Check for collision against all targets
-                for (u = 0; u < this.targets.length; u++) {
-                  let t = this.targets[u];
-                  if (
-                    t.getAttribute("target").active &&
-                    (a = t.object3D).visible
-                  ) {
-                    s = !1;
-                    // Check for intersection
-                    a.boundingBox
-                      ? (s = a.boundingBox.intersectsBox(e))
-                      : (i.setFromObject(a), (s = i.intersectsBox(e)));
-
-                    if (s) {
-                      this.killBullet(o); // Deactivate bullet on hit
-                      t.components.target.onBulletHit(o); // Notify the target
-                      t.emit("hit", null); // Emit a general 'hit' event
-                      break; // Stop checking other targets for this bullet
-                    }
-                  }
-                }
-              }
-        };
-      })(),
-          // Deactivates a bullet, returning it to the pool
-      killBullet: function (e) {
-        e.visible = !1;
-      },
 });
-
 
 
 AFRAME.registerComponent('player-controls', {
@@ -442,8 +380,7 @@ AFRAME.registerComponent('player-controls', {
 
 
 
-
-
+//Manages all Bullets,Targets, and collision Detections.
 AFRAME.registerSystem("bullet", {
       init: function () {
         var e;
