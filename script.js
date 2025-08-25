@@ -237,53 +237,6 @@ AFRAME.registerComponent('bullet', {
   }
 });
 
-//Manages all Bullets,Targets, and collision Detections.
-AFRAME.registerSystem('bullet', {
-  
-
-  init: function () {
-    let e;
-    (e = document.createElement('a-entity')).id = 'shooterBulletContainer';
-    this.el.sceneEl.appendChild(e);
-    this.container = e.object3D;
-
-    this.pool = {};
-    this.targets = {};
-  },
-
-  // creating a pool for specfic types of Bullets
-  registerBullet : function(e){
-    let elmData,j,k,n;
-    if((k = e.el.object3D)){
-      elmData = e.data;
-      this.pool[elmData.name] =[];
-
-    //Clone teh bullet entity Pool Size Times
-    for(n=0; n<elmData.poolSize;n++){
-      (j=k.clone()).damage = elmData.damage;
-      j.direction =  new THREE.Vector3(0,0,-1);
-      //I learned this from ai . converting seconds into milliseconds.
-      j.maxTime = 1e3 * elmData.maxTime;
-      j.name = elmData.name + n;
-      j.speed = elmData.speed;
-      j.time = 0;
-
-    }
-    }
-
-  },
-  update: function () {
-    // Do something when component's data is updated.
-  },
-
-  remove: function () {
-    // Do something the component or its entity is detached.
-  },
-
-  tick: function (time, timeDelta) {
-    // Do something on every scene tick or frame.
-  }
-});
 
 
 
@@ -366,8 +319,7 @@ AFRAME.registerComponent('player-controls', {
 
 
 
-
-
+//Manages all Bullets,Targets, and collision Detections.
 AFRAME.registerSystem("bullet", {
       init: function () {
         var e;
