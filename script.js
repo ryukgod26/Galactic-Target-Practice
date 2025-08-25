@@ -48,6 +48,7 @@ if(this.data.health <= 0){
         this.el.body.setLinearVelocity(new Ammo.btVector3(0,0,0));
         this.el.body.setAngularVelocity(new Ammo.btVector3(0,0,0));
       }
+      this.el.parentNode.removeChild(this.el);
 }
 else{
     console.log(`Enemy Health is ${this.data.health}`);
@@ -127,44 +128,48 @@ console.log('Player has collided with ',event.detail.body.el);
   }
 });
 
-const SHOOT_SOUND = 'sounds/shoot1.wav'; // Path to the shooting sound
+// const SHOOT_SOUND = 'sounds/shoot1.wav'; // Path to the shooting sound
 
-AFRAME.registerComponent('shoot', {
-  schema: {
-    projectile: { type: 'string', default: '#bullet' },
-    speed: { type: 'number', default: 10 }
-  },
+// AFRAME.registerComponent('shoot', {
+//   schema: {
+//     projectile: { type: 'string', default: '#bullet' },
+//     speed: { type: 'number', default: 10 }
+//   },
 
-  init: function () {
-    this.shootSound = new Audio(SHOOT_SOUND);
-    this.shootSound.volume = 0.5;
-    this.el.addEventListener('shoot', this.shoot.bind(this));
-  },
+//   init: function () {
+//     this.shootSound = new Audio(SHOOT_SOUND);
+//     this.shootSound.volume = 0.5;
+//     this.el.addEventListener('shoot', this.shoot.bind(this));
+//   },
 
-  shoot: function () {
-    const projectile = document.createElement('a-entity');
-    projectile.setAttribute('geometry', { primitive: 'sphere', radius: 0.1 });
-    projectile.setAttribute('material', { color: '#FF0000' });
-    projectile.setAttribute('position', this.el.getAttribute('position'));
-    projectile.setAttribute('dynamic-body', { mass: 1 });
+//   shoot: function () {
+
     
-    const direction = new THREE.Vector3();
-    this.el.object3D.getWorldDirection(direction);
-    direction.multiplyScalar(this.data.speed);
+//     const projectile = document.createElement('a-entity');
+//     console.log('Shooting the projectile');
+
+//     projectile.setAttribute('geometry', { primitive: 'sphere', radius: 0.1 });
+//     projectile.setAttribute('material', { color: '#FF0000' });
+//     projectile.setAttribute('position', this.el.getAttribute('position'));
+//     projectile.setAttribute('dynamic-body', { mass: 1 });
     
-    projectile.body.velocity.set(direction.x, direction.y, direction.z);
+//     const direction = new THREE.Vector3();
+//     this.el.object3D.getWorldDirection(direction);
+//     direction.multiplyScalar(this.data.speed);
     
-    this.el.sceneEl.appendChild(projectile);
-    this.shootSound.play();
+//     projectile.body.velocity.set(direction.x, direction.y, direction.z);
     
-    // Remove projectile after 2 seconds
-    setTimeout(() => {
-      if (projectile.parentNode) {
-        projectile.parentNode.removeChild(projectile);
-      }
-    }, 2000);
-  }
-});
+//     this.el.sceneEl.appendChild(projectile);
+//     this.shootSound.play();
+    
+//     // Remove projectile after 2 seconds
+//     setTimeout(() => {
+//       if (projectile.parentNode) {
+//         projectile.parentNode.removeChild(projectile);
+//       }
+//     }, 2000);
+//   }
+// });
 
 AFRAME.registerComponent('shooter', {
   schema: {
@@ -237,7 +242,47 @@ AFRAME.registerComponent('bullet', {
   }
 });
 
+AFRAME.registerComponent('click-to-shoot', {
 
+  init: function () {
+    this.el.addEventListener('mousedown', () => {
+      this.el.emit('shoot');
+    });
+  }
+
+
+});
+
+
+AFRAME.registerComponent('hit-handler', {
+  dependencies: ['material'],
+  init: function () {
+    let color;
+    color = new THREE.Color();
+    color= this.el.getAttribute('material').color;
+    this.el.addEventListener('hit', () => {
+      color.addScalar(0.05);
+      this.el.components.material.color.copy(color);
+    });
+
+    this.addEventListener('die',()=>{
+      color.setRGB(1,0,0);
+      this.el.components.material.color.copy(color);
+    });
+  },
+
+  update: function () {
+    // Do something when component's data is updated.
+  },
+
+  remove: function () {
+    // Do something the component or its entity is detached.
+  },
+
+  tick: function (time, timeDelta) {
+    // Do something on every scene tick or frame.
+  }
+});
 
 
 AFRAME.registerComponent('player-controls', {
