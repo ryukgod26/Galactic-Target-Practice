@@ -9,12 +9,13 @@
 <script src="https://cdn.jsdelivr.net/npm/@fern-solutions/aframe-sky-background/dist/sky-background.umd.min.js"></script>
 <script src="https://unpkg.com/aframe-event-set-component@4.2.1/dist/aframe-event-set-component.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/aframe-blink-controls/dist/aframe-blink-controls.min.js"></script>
-<script src="https://unpkg.com/@c-frame/aframe-physics-system@4.2.2/dist/aframe-physics-system.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/ammo-wsm@1.0.0/dist/ammo.wasm.js"></script>
+<script src="https://unpkg.com/@c-frame/aframe-physics-system@4.0.1/dist/aframe-physics-system.min.js"></script>
 <script src="script.js"></script>
 </head>
 <body>
 
-<a-scene game-manager physics="debug:true;driver:ammo;">
+<a-scene enemy-spawner game-manager physics="driver: ammo;debug:true;">
 	<a-assets>
 		<img id="space" src="images/space.jpg">
 		<img id="floor1" src="images/floor1.jpg">
@@ -40,8 +41,11 @@
 </a-camera>
 </a-entity>   -->
 <a-entity id="player" 
- dynamic-body="shape: capsule; mass: 5;linearDamping:0; angularDamping: 1"
+ ammo-body="type: kinematic; activationState:disableDeactivation"
+ ammo-shape="type:capsule;fit:manual;capsuleAxis:y;height:1.6; radius:0.25;"
                   player
+				
+
                   position="0 1.6 0">
            
 			<a-camera shooter click-to-shoot>
@@ -51,15 +55,22 @@
         </a-entity>
 
 <!-- dynamic-body="mass:2; shape:box; linearDamping:0.05; angularDamping:0.9" -->
-<a-entity dynamic-body position="-5 5 -9" class="enemy" enemy>
-<a-gltf-model  position="0 0 0"  scale="0.06 0.06 0.06" shadow="cast:true" src="#drone"></a-gltf-model>
+<a-entity 
+dynamic-body="mass: 1; shape: box;"
+id="enemy"
+ position="-5 5 -9" class="enemy" enemy>
+<a-gltf-model  position="0 0 0"  scale="0.5 0.5 0.5" shadow="cast:true" src="#drone"></a-gltf-model>
 </a-entity>
 
-<a-entity dynamic-body position="0 1.2 -20" class="enemy"   enemy
+<a-entity 
+ammo-body="type: kinematic;"
+ammo-shape="type: sphere;"
+id="enemy"
+position="0 1.2 -20" class="enemy"   enemy
 event-set__mouseenter="color:#FF00FF;"
 event-set__mouseleave="color:#0000FF"
 >
-<a-gltf-model id="first" position="0 0 0"  scale="0.09 0.09 0.09" shadow="cast:true;" src="#drone"></a-gltf-model>
+<a-gltf-model id="first" position="0 0 0"  scale="0.5 0.5 0.5" shadow="cast:true;" src="#drone"></a-gltf-model>
 </a-entity>
 <!-- Game Over UI -->
 <a-entity id="game-over-ui" position="0 1.6 -2" visible="false">

@@ -1,4 +1,5 @@
 AFRAME.registerComponent("enemy", {
+  dependencies:['#player'],
   schema: {
     health: { type: "number", default: 100 },
     damage: { type: "number", default: 5 },
@@ -20,8 +21,10 @@ AFRAME.registerComponent("enemy", {
       }
     });
 
-    this.directionVec3 = new THREE.Vector3();
-    this.targetPos = new THREE.Vector3();
+    this.targetPosition = new THREE.Vector3();
+    this.currentPosition = new THREE.Vector3();
+    this.direction = new THREE.Vector3();
+
     this.el.addEventListener("click", this.onClick.bind(this));
     this.el.addEventListener("body-loaded", () => {
       const body = this.el.body;
@@ -60,42 +63,69 @@ AFRAME.registerComponent("enemy", {
   },
 
   tick: function (time, timeDelta) {
-     this.timeSinceLastAttack += timeDelta; 
-
     const body = this.el.body;
-    if (!this.data.target) return;
-    if (!this.el.body) return;
-    this.targetPos = this.data.target.object3D.getWorldPosition(this.targetPos);
-    console.log(`Player is at x: ${this.targetPos.x}, y: ${this.targetPos.y}, z: ${this.targetPos.z}`);
-    
-    const pos = new THREE.Vector3();
-    this.el.object3D.getWorldPosition(pos);
-    this.directionVec3.subVectors(this.targetPos, pos);
-    // this.directionVec3.set(
-    //   this.targetPos.x - pos.x,
-    //   this.targetPos.y - pos.y,
-    //   this.targetPos.z - pos.z
-    // );
-    const dist = this.directionVec3.length();
+    if (!body || !this.data.target) return;
+    console.log('moving');
+
+    this.timeSinceLastAttack += timeDelta;
+    // Get world positions
+    this.data.target.object3D.getWorldPosition(this.targetPosition);
+    this.el.object3D.getWorldPosition(this.currentPosition);
+
+    // Calculate direction to player
+    this.direction.subVectors(this.targetPosition, this.currentPosition);
+    const dist = this.direction.length();
+
     if (dist < 1.5) {
-      //SLowing Near Player
       body.velocity.set(0, 0, 0);
       if (this.timeSinceLastAttack >= this.data.attackCooldown) {
-        console.log("Enemy attacks!");
         this.data.target.emit("player-damaged", { damage: this.data.damage });
-        this.timeSinceLastAttack = 0; // Reset the timer
+        this.timeSinceLastAttack = 0;
       }
-
-      
       return;
     }
-    const factor = this.data.speed / dist;
-  const velocity = this.directionVec3.multiplyScalar(factor);
-    body.velocity.set(velocity.x, velocity.y, velocity.z);
+
+    // Normalize and scale direction
+    this.direction.normalize();
+    this.direction.multiplyScalar(this.data.speed);
+
+
+
+  //   const body = this.el.body;
+  //   if (!this.data.target) return;
+  //   if (!this.el.body) return;
+  //   this.targetPos = this.data.target.object3D.getWorldPosition(this.targetPos);
+  //   console.log(`Player is at x: ${this.targetPos.x}, y: ${this.targetPos.y}, z: ${this.targetPos.z}`);
+    
+  //   const pos = new THREE.Vector3();
+  //   this.el.object3D.getWorldPosition(pos);
+  //   this.directionVec3.subVectors(this.targetPos, pos);
+  //   // this.directionVec3.set(
+  //   //   this.targetPos.x - pos.x,
+  //   //   this.targetPos.y - pos.y,
+  //   //   this.targetPos.z - pos.z
+  //   // );
+  //   const dist = this.directionVec3.length();
+  //   if (dist < 1.5) {
+  //     //SLowing Near Player
+  //     body.velocity.set(0, 0, 0);
+  //     if (this.timeSinceLastAttack >= this.data.attackCooldown) {
+  //       console.log("Enemy attacks!");
+  //       this.data.target.emit("player-damaged", { damage: this.data.damage });
+  //       this.timeSinceLastAttack = 0; // Reset the timer
+  //     }
+
+      
+  //     return;
+  //   }
+  //   const factor = this.data.speed / dist;
+  // const velocity = this.directionVec3.multiplyScalar(factor);
+  //   body.velocity.set(velocity.x, velocity.y, velocity.z);
     
     // body.velocity.x = this.directionVec3.x;
     // body.velocity.y = this.directionVec3.y;
     // body.velocity.z = this.directionVec3.z;
+  
   },
 });
 
@@ -296,6 +326,15 @@ AFRAME.registerComponent("player", {
       console.log("Player has collided with ", event.detail.body.el);
     });
     this.el.addEventListener("player-damaged", this.playerDamaged.bind(this));
+    this.el.addEventListener('collidestart',(e)=>{
+      console.log(`Player Collided with ${e.detail.el.id}`);
+      if(e.detail.el.id === 'enemy'){
+        this.data.health -= 25;
+        console.log(`Player has ${this.data.health} HP.`);
+        
+      }
+      
+    })
   },
   playerDamaged: function (e) {
     const damage = e.detail.damage;
@@ -541,4 +580,42 @@ AFRAME.registerSystem("bullet", {
   killBullet: function (e) {
     e.visible = !1;
   },
+});
+
+
+AFRAME.registerSystem('enemy-spawner', {
+  schema: {
+    minEnemies: { default: 2 }
+  },
+  init: function () {
+    this.spawnInterval = 2000; // ms
+    this.lastSpawn = 0;
+    this.enemyClass = 'enemy';
+    this.enemyPositions = [
+      {x: -10, y: 1, z: -10},
+      {x: 10, y: 1, z: -10},
+      {x: -10, y: 1, z: 10},
+      {x: 10, y: 1, z: 10},
+      {x: 0, y: 1, z: -20},
+      {x: 0, y: 1, z: 20}
+    ];
+  },
+  tick: function (time, timeDelta) {
+    const enemies = document.querySelectorAll('.enemy');
+    if (enemies.length < this.data.minEnemies && time - this.lastSpawn > this.spawnInterval) {
+      this.spawnEnemy();
+      this.lastSpawn = time;
+    }
+  },
+  spawnEnemy: function () {
+    const pos = this.enemyPositions[Math.floor(Math.random() * this.enemyPositions.length)];
+    const scene = this.el.sceneEl;
+    const enemy = document.createElement('a-entity');
+    enemy.setAttribute('dynamic-body', 'mass:2; shape:box;');
+    enemy.setAttribute('class', 'enemy');
+    enemy.setAttribute('enemy', '');
+    enemy.setAttribute('position', `${pos.x} ${pos.y} ${pos.z}`);
+    enemy.innerHTML = '<a-gltf-model src="#drone" scale="0.5 0.5 0.5"></a-gltf-model>';
+    scene.appendChild(enemy);
+  }
 });
