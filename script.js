@@ -89,7 +89,7 @@ AFRAME.registerComponent("enemy", {
     this.direction.normalize();
     this.direction.multiplyScalar(this.data.speed);
 
-
+body.velocity.set(this.direction.x, body.velocity.y, this.direction.z);
 
   //   const body = this.el.body;
   //   if (!this.data.target) return;
