@@ -10,12 +10,12 @@
 <script src="https://unpkg.com/aframe-event-set-component@4.2.1/dist/aframe-event-set-component.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/aframe-blink-controls/dist/aframe-blink-controls.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/ammo-wsm@1.0.0/dist/ammo.wasm.js"></script>
-<script src="https://unpkg.com/@c-frame/aframe-physics-system@4.0.1/dist/aframe-physics-system.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/n5ro/aframe-physics-system@v$npm_package_version/dist/aframe-physics-system.min.js"></script>
 <script src="script.js"></script>
 </head>
 <body>
 
-<a-scene enemy-spawner game-manager physics="driver: ammo;debug:true;">
+<a-scene enemy-spawner game-manager potion-spawner speedup-spawner physics="driver: ammo;debug:true;">
 	<a-assets>
 		<img id="space" src="images/space.jpg">
 		<img id="floor1" src="images/floor1.jpg">
@@ -27,6 +27,9 @@
 		<a-gltf-model id="bullet" src="models/bullet.glb"></a-gltf-model>
 		<a-asset-item id="drone" src="models/VRDRONE.glb"></a-asset-item>
 		 <a-asset-item id="playerModel" src="models/player.glb"></a-asset-item>
+		 <a-asset-item id="potion" src="models/health_potion.glb"></a-asset-item>
+		 <a-asset-item id="white_drone" src="models/white_drone.glb"></a-asset-item>
+		 <a-asset-item id="speed_up" src="models/stylized_energy_cell.glb"></a-asset-item>
 	</a-assets>
 	<!-- lights -->
 	 <a-entity light="type: ambient; color: #BBB;"></a-entity>
@@ -40,38 +43,17 @@
 	<a-cursor raycaster="objects: .enemy;showLine:true;" cursor=" fuse:false;"  color="#0000FF"></a-cursor>
 </a-camera>
 </a-entity>   -->
-<a-entity id="player" 
- ammo-body="type: kinematic; activationState:disableDeactivation"
- ammo-shape="type:capsule;fit:manual;capsuleAxis:y;height:1.6; radius:0.25;"
-                  player
-				
-
-                  position="0 1.6 0">
            
-			<a-camera shooter click-to-shoot>
-				 <a-gltf-model src="#playerModel" scale="0.05 0.05 0.05" position="0 -1.6 0"></a-gltf-model>
-                <a-cursor></a-cursor>
-            </a-camera>
-        </a-entity>
+									 <a-camera  ammo-body="type: kinematic; activationState:disableDeactivation"
+ ammo-shape="type:capsule;fit:manual;capsuleAxis:y;height:1.6; radius:0.25;"
+									player
+									position="0 1.6 0"
+									id="player">
+										<!-- <a-entity id="bullet-template" bullet="damage: 25; speed: 20; maxTime: 2; name: normal; poolSize: 10" geometry="primitive: sphere; radius: 0.1" material="color: #FF0000;" visible="false"></a-entity> -->
+										<a-cursor></a-cursor>
+						</a-camera>
 
-<!-- dynamic-body="mass:2; shape:box; linearDamping:0.05; angularDamping:0.9" -->
-<a-entity 
-dynamic-body="mass: 1; shape: box;"
-id="enemy"
- position="-5 5 -9" class="enemy" enemy>
-<a-gltf-model  position="0 0 0"  scale="0.5 0.5 0.5" shadow="cast:true" src="#drone"></a-gltf-model>
-</a-entity>
 
-<a-entity 
-ammo-body="type: kinematic;"
-ammo-shape="type: sphere;"
-id="enemy"
-position="0 1.2 -20" class="enemy"   enemy
-event-set__mouseenter="color:#FF00FF;"
-event-set__mouseleave="color:#0000FF"
->
-<a-gltf-model id="first" position="0 0 0"  scale="0.5 0.5 0.5" shadow="cast:true;" src="#drone"></a-gltf-model>
-</a-entity>
 <!-- Game Over UI -->
 <a-entity id="game-over-ui" position="0 1.6 -2" visible="false">
     <a-text value="Game Over" align="center" color="white" width="4"></a-text>

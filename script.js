@@ -1,133 +1,266 @@
-AFRAME.registerComponent("enemy", {
-  dependencies:['#player'],
+// Spawn initial enemy after scene loaded
+document.addEventListener('DOMContentLoaded', function() {
+  var scene = document.querySelector('a-scene');
+  if (scene) {
+    scene.addEventListener('loaded', function() {
+  var enemy = document.createElement('a-entity');
+  enemy.setAttribute('id', 'enemy1');
+  enemy.setAttribute('class', 'enemy');
+  enemy.setAttribute('position', '-5 1.2 -10');
+  enemy.setAttribute('dynamic-body', 'mass:2; shape:box; linearDamping:0.05; angularDamping:0.9');
+  enemy.setAttribute('enemy', '');
+  enemy.setAttribute('scale', '0.5 0.5 0.5');
+  // Add hidden box geometry for physics
+  var box = document.createElement('a-box');
+  box.setAttribute('width', '1');
+  box.setAttribute('height', '1');
+  box.setAttribute('depth', '1');
+  box.setAttribute('visible', 'false');
+  enemy.appendChild(box);
+  // Add GLTF model
+  var model = document.createElement('a-gltf-model');
+  model.setAttribute('src', '#drone');
+  model.setAttribute('position', '0 0 0');
+  model.setAttribute('scale', '1 1 1');
+  model.setAttribute('shadow', 'cast:true;');
+  enemy.appendChild(model);
+  scene.appendChild(enemy);
+    });
+  }
+});
+// Enemy component for initial and spawned enemies
+AFRAME.registerComponent('enemy', {
   schema: {
-    health: { type: "number", default: 100 },
-    damage: { type: "number", default: 5 },
-    speed: { type: "number", default: 3 },
-    target: { type: "selector", default: "#player" },
-     attackCooldown: { type: "number", default: 1000 }, // Cooldown in milliseconds (1 second)
+    health: { type: 'number', default: 100 },
+    speed: { type: 'number', default: 5 },
+    damage: { type: 'number', default: 25 },
+    target: { type: 'selector', default: '#player' }
   },
-
   init: function () {
-    let data = this.data;
-    this.speed = this.data.speed;
-    this.damage = this.data.damage;
-     this.timeSinceLastAttack = 0;
-    this.el.addEventListener("collide", (e) => {
-      // e.detail.body is the other Cannon body
-      if (e.detail.body.el && e.detail.body.el.id === "player") {
-        console.log("Drone collided with player!");
-        // Handle damage, effects, etc.
+    this.bodyReady = false;
+    this.body = null;
+    // Listen for body-loaded event
+    this.el.addEventListener('body-loaded', () => {
+      this.bodyReady = true;
+      this.body = this.el.body;
+    });
+    // Fallback: poll for body if event missed
+    this._bodyPollTries = 0;
+    this._bodyPollInterval = setInterval(() => {
+      if (this.bodyReady) {
+        clearInterval(this._bodyPollInterval);
+        return;
+      }
+      if (this.el.body) {
+        this.bodyReady = true;
+        this.body = this.el.body;
+        clearInterval(this._bodyPollInterval);
+        console.log('Enemy body detected by polling:', this.el);
+      }
+      this._bodyPollTries++;
+      if (this._bodyPollTries > 100) { // ~5 seconds
+        clearInterval(this._bodyPollInterval);
+        if (!this.bodyReady) {
+          console.warn('Enemy body not ready after 5 seconds:', this.el);
+        }
+      }
+    }, 50);
+    // Click to damage enemy
+    this.el.addEventListener('click', () => {
+      this.data.health -= 25;
+      if (this.data.health <= 0) {
+        this.el.setAttribute('visible', false);
+        if (this.el.parentNode) this.el.parentNode.removeChild(this.el);
       }
     });
-
+    // For movement
     this.targetPosition = new THREE.Vector3();
     this.currentPosition = new THREE.Vector3();
     this.direction = new THREE.Vector3();
-
-    this.el.addEventListener("click", this.onClick.bind(this));
-    this.el.addEventListener("body-loaded", () => {
-      const body = this.el.body;
-      if (!body) return;
-
-      // I learned this from AI.
-      body.linearDamping = 0.05;
-      body.angularDamping = 0.9;
-      console.log("Enemy Ready");
-    });
-    console.log(data);
   },
-  onClick: function (evt) {
-    console.log("Enemy Clicked!!!");
-    this.data.health -= 25;
-    if (this.data.health <= 0) {
-      console.log("Enemy Destroyed!!!");
-      this.el.setAttribute("visible", false);
-      this.data.target.emit("enemy-die");
-
-      if (this.el.body) {
-        this.el.body.setLinearVelocity(new Ammo.btVector3(0, 0, 0));
-        this.el.body.setAngularVelocity(new Ammo.btVector3(0, 0, 0));
-      }
-      this.el.parentNode.removeChild(this.el);
-    } else {
-      console.log(`Enemy Health is ${this.data.health}`);
-    }
-  },
-  update: function () {
-    // Do something when component's data is updated.
-  },
-
-  remove: function () {
-    this.el.removeEventListener("click", this.onClick);
-  },
-
   tick: function (time, timeDelta) {
-    const body = this.el.body;
-    if (!body || !this.data.target) return;
-    console.log('moving');
-
-    this.timeSinceLastAttack += timeDelta;
-    // Get world positions
-    this.data.target.object3D.getWorldPosition(this.targetPosition);
+    if (!this.bodyReady){
+      console.log('Body not ready');
+      return ;
+      
+    } 
+    // Get player entity world position
+    const player = document.querySelector('#player');
+    if (!player || !player.object3D) return;
+    // Use player entity's world position
+    player.object3D.getWorldPosition(this.targetPosition);
     this.el.object3D.getWorldPosition(this.currentPosition);
-
-    // Calculate direction to player
+    // Move toward player
     this.direction.subVectors(this.targetPosition, this.currentPosition);
     const dist = this.direction.length();
-
     if (dist < 1.5) {
-      body.velocity.set(0, 0, 0);
-      if (this.timeSinceLastAttack >= this.data.attackCooldown) {
-        this.data.target.emit("player-damaged", { damage: this.data.damage });
-        this.timeSinceLastAttack = 0;
-      }
+      // Reached player, emit damage event
+      if (this.body && this.body.velocity) this.body.velocity.set(0, 0, 0);
+      this.el.emit('enemy-attack', { damage: this.data.damage });
       return;
     }
-
-    // Normalize and scale direction
     this.direction.normalize();
     this.direction.multiplyScalar(this.data.speed);
-
-body.velocity.set(this.direction.x, body.velocity.y, this.direction.z);
-
-  //   const body = this.el.body;
-  //   if (!this.data.target) return;
-  //   if (!this.el.body) return;
-  //   this.targetPos = this.data.target.object3D.getWorldPosition(this.targetPos);
-  //   console.log(`Player is at x: ${this.targetPos.x}, y: ${this.targetPos.y}, z: ${this.targetPos.z}`);
-    
-  //   const pos = new THREE.Vector3();
-  //   this.el.object3D.getWorldPosition(pos);
-  //   this.directionVec3.subVectors(this.targetPos, pos);
-  //   // this.directionVec3.set(
-  //   //   this.targetPos.x - pos.x,
-  //   //   this.targetPos.y - pos.y,
-  //   //   this.targetPos.z - pos.z
-  //   // );
-  //   const dist = this.directionVec3.length();
-  //   if (dist < 1.5) {
-  //     //SLowing Near Player
-  //     body.velocity.set(0, 0, 0);
-  //     if (this.timeSinceLastAttack >= this.data.attackCooldown) {
-  //       console.log("Enemy attacks!");
-  //       this.data.target.emit("player-damaged", { damage: this.data.damage });
-  //       this.timeSinceLastAttack = 0; // Reset the timer
-  //     }
-
-      
-  //     return;
-  //   }
-  //   const factor = this.data.speed / dist;
-  // const velocity = this.directionVec3.multiplyScalar(factor);
-  //   body.velocity.set(velocity.x, velocity.y, velocity.z);
-    
-    // body.velocity.x = this.directionVec3.x;
-    // body.velocity.y = this.directionVec3.y;
-    // body.velocity.z = this.directionVec3.z;
-  
-  },
+    if (this.body && this.body.velocity) {
+      this.body.velocity.x = this.direction.x;
+      this.body.velocity.z = this.direction.z;
+    }
+  }
 });
+// Listen for enemy-attack event in player component
+// Speed-up powerup system
+AFRAME.registerSystem('speedup-spawner', {
+  schema: {
+    spawnInterval: { default: 40000 }, // ms (40 seconds)
+    randomExtra: { default: 10000 }, // ms (up to 10 seconds extra)
+    planeSize: { default: 50 },
+  },
+  init: function () {
+    this.lastSpawn = 0;
+    this.speedupEntity = null;
+    this.player = document.querySelector('#player');
+    this.nextInterval = this.data.spawnInterval + Math.random() * this.data.randomExtra;
+    this.el.sceneEl.addEventListener('speedup-picked', () => {
+      if (this.speedupEntity && this.speedupEntity.parentNode) {
+        this.speedupEntity.parentNode.removeChild(this.speedupEntity);
+        this.speedupEntity = null;
+        this.nextInterval = this.data.spawnInterval + Math.random() * this.data.randomExtra;
+        this.lastSpawn = performance.now();
+      }
+    });
+  },
+  tick: function (time, timeDelta) {
+    if (!this.player) return;
+    if (this.speedupEntity) return;
+    if (time - this.lastSpawn < this.nextInterval) return;
+    this.spawnSpeedup();
+    this.lastSpawn = time;
+  },
+  spawnSpeedup: function () {
+    const planeSize = this.data.planeSize;
+    const x = (Math.random() - 0.5) * planeSize;
+    const z = (Math.random() - 0.5) * planeSize;
+    const y = 1.2;
+    const speedup = document.createElement('a-entity');
+    speedup.setAttribute('id', 'speedup-powerup');
+    speedup.setAttribute('position', `${x} ${y} ${z}`);
+  speedup.setAttribute('gltf-model', '#speed_up');
+  speedup.setAttribute('scale', '0.5 0.5 0.5');
+  speedup.setAttribute('speedup', '');
+    this.el.sceneEl.appendChild(speedup);
+    this.speedupEntity = speedup;
+    // Remove after 10 seconds if not picked up
+      setTimeout(() => {
+        speedup.setAttribute('gltf-model', '#speed_up');
+        speedup.setAttribute('scale', '0.5 0.5 0.5');
+      if (this.speedupEntity && this.speedupEntity.parentNode) {
+        this.speedupEntity.parentNode.removeChild(this.speedupEntity);
+        this.speedupEntity = null;
+        this.nextInterval = this.data.spawnInterval + Math.random() * this.data.randomExtra;
+        this.lastSpawn = performance.now();
+      }
+    }, 10000);
+  }
+});
+
+// Speedup powerup component
+AFRAME.registerComponent('speedup', {
+  init: function () {
+    this.el.addEventListener('click', () => {
+      const player = document.querySelector('#player');
+      if (player) {
+        let playerData = player.getAttribute('player');
+        player.setAttribute('player', 'speed', playerData.speed + 10);
+      }
+      this.el.sceneEl.emit('speedup-picked');
+    });
+  }
+});
+// Target component for enemies to allow bullet collision
+AFRAME.registerComponent('target', {
+  schema: {
+    active: { default: true }
+  },
+  init: function () {
+    // Called when bullet hits
+    this.el.components.target = this;
+  },
+  onBulletHit: function (bullet) {
+    // Reduce enemy health
+    let enemyComp = this.el.components.enemy;
+    if (enemyComp) {
+      enemyComp.data.health -= bullet.damage || 25;
+      if (enemyComp.data.health <= 0) {
+        this.el.setAttribute('visible', false);
+        this.el.parentNode.removeChild(this.el);
+        document.querySelector('#player').emit('enemy-die');
+      }
+    }
+  }
+});
+// current change: health potion spawner system
+AFRAME.registerSystem('potion-spawner', {
+  schema: {
+    minHealth: { default: 40 },
+    spawnInterval: { default: 5000 }, // ms
+    potionId: { default: 'potion' },
+    planeSize: { default: 50 },
+  },
+  init: function () {
+    this.lastSpawn = 0;
+    this.potionEntity = null;
+    this.player = document.querySelector('#player');
+    this.el.sceneEl.addEventListener('potion-picked', () => {
+      if (this.potionEntity && this.potionEntity.parentNode) {
+        this.potionEntity.parentNode.removeChild(this.potionEntity);
+        this.potionEntity = null;
+      }
+    });
+  },
+  tick: function (time, timeDelta) {
+    if (!this.player) return;
+    const health = this.player.getAttribute('player').health;
+    if (health > this.data.minHealth) return;
+    if (this.potionEntity) return;
+    if (time - this.lastSpawn < this.data.spawnInterval) return;
+    this.spawnPotion();
+    this.lastSpawn = time;
+  },
+  spawnPotion: function () {
+    const planeSize = this.data.planeSize;
+    // Random position on plane
+    const x = (Math.random() - 0.5) * planeSize;
+    const z = (Math.random() - 0.5) * planeSize;
+    const y = 1.2;
+    const potion = document.createElement('a-entity');
+    potion.setAttribute('id', 'health-potion');
+    potion.setAttribute('position', `${x} ${y} ${z}`);
+    potion.setAttribute('gltf-model', '#potion');
+    potion.setAttribute('scale', '0.5 0.5 0.5');
+    potion.setAttribute('potion', '');
+    this.el.sceneEl.appendChild(potion);
+    this.potionEntity = potion;
+    potion.setAttribute('gltf-model', '#potion');
+    potion.setAttribute('scale', '0.5 0.5 0.5');
+  }
+});
+
+// current change: potion component for pickup
+AFRAME.registerComponent('potion', {
+  init: function () {
+    this.el.addEventListener('click', () => {
+      // Increase player health
+      const player = document.querySelector('#player');
+      if (player) {
+        let playerData = player.getAttribute('player');
+        player.setAttribute('player', 'health', Math.min(playerData.health + 40, 100));
+      }
+      // Remove potion
+      this.el.sceneEl.emit('potion-picked');
+    });
+  }
+});
+
 
 // const SHOOT_SOUND = 'sounds/shoot1.wav'; // Path to the shooting sound
 
@@ -171,99 +304,108 @@ body.velocity.set(this.direction.x, body.velocity.y, this.direction.z);
 //   }
 // });
 
-AFRAME.registerComponent("shooter", {
-  schema: {
-    schema: {
-      activeBulletType: { type: "string", default: "normal" }, // The current bullet type to fire
-      bulletTypes: { type: "array", default: ["normal"] }, // All available bullet types
-      cycle: { default: !1 }, // Whether to cycle through bullet types
-    },
-  },
+// AFRAME.registerComponent("shooter", {
+//   schema: {
+//     schema: {
+//       activeBulletType: { type: "string", default: "normal" }, // The current bullet type to fire
+//       bulletTypes: { type: "array", default: ["normal"] }, // All available bullet types
+//       cycle: { default: !1 }, // Whether to cycle through bullet types
+//     },
+//   },
+//
+//   init: function () {
+//     this.el.addEventListener("shoot", this.onShoot.bind(this));
+//     this.el.addEventListener("onChangeBullet", this.onChangeBullet.bind(this));
+//     this.bulletSystem = this.el.sceneEl.systems.bullet;
+//     // Register bullet template entity with bullet system
+//     let bulletTemplate = document.querySelector('#bullet-template');
+//     if (bulletTemplate && this.bulletSystem) {
+//       this.bulletSystem.registerBullet({el: bulletTemplate, data: bulletTemplate.components.bullet.data});
+//     }
+//     // Register all enemies as targets
+//     let enemies = document.querySelectorAll('.enemy');
+//     enemies.forEach(enemy => {
+//       this.bulletSystem.registerTarget({el: enemy}, true);
+//     });
+//   },
+//
+//   onShoot: function () {
+//     this.bulletSystem.shoot(this.data.activeBulletType, this.el.object3D);
+//   },
+//
+//   onChangeBullet: function (e) {
+//     let t;
+//     elm = this.el;
+//
+//     if ("next" === e.detail) {
+//       if (-1 == (t = this.data.bulletTypes.indexOf(this.data.activeBulletType)))
+//         return;
+//       t = this.data.cycle
+//         ? (t + 1) % this.data.bulletTypes.length
+//         : Math.min(this.data.bulletTypes.length - 1, t + 1);
+//       this.data.activeBulletType = this.data.bulletTypes[t];
+//       return void elm.setAttribute(
+//         "shooter",
+//         "activeBulletType",
+//         this.data.bulletTypes[t]
+//       );
+//     }
+//
+//     if ("prev" === e.detail) {
+//       if (
+//         -1 === (t = this.data.bulletTypes.indexOf(this.data.activeBulletType))
+//       )
+//         return;
+//       t = this.data.cycle
+//         ? (t - 1) % this.data.bulletTypes.length
+//         : Math.max(0, t - 1);
+//       this.data.activeBulletType = this.data.bulletTypes[t];
+//       return void this.el.setAttribute(
+//         "shooter",
+//         "activeBulletType",
+//         this.data.bulletTypes[t]
+//       );
+//     }
+//     //For custom Bullet Type
+//     // elm.setAttribute('shooter','activeBulletType',this.data.bulletTypes[e.detail])
+//     elm.setAttribute("shooter", "activeBulletType", e.detail);
+//   },
+// });
 
-  init: function () {
-    // Do something when component first attached.
-    this.el.addEventListener("shoot", this.onShoot.bind(this));
-    this.el.addEventListener("onChangeBullet", this.onChangeBullet.bind(this));
-    this.bulletSystem = this.el.sceneEl.systems.bullet;
-  },
+// AFRAME.registerComponent("bullet", {
+//   dependencies: ["material"],
+//   schema: {
+//     damage: { default: 1, type: "float" },
+//     maxTime: { default: 4, type: "float" },
+//     name: { default: "normal", type: "string" },
+//     poolSize: { default: 10, type: "int", min: 0 }, //Number of Bullets to pre-create for performance
+//     speed: { default: 8, type: "float" },
+//   },
+//
+//   init: function () {
+//     // Do something when component first attached.
+//   },
+//
+//   update: function () {
+//     // Do something when component's data is updated.
+//   },
+//
+//   remove: function () {
+//     // Do something the component or its entity is detached.
+//   },
+//
+//   tick: function (time, timeDelta) {
+//     // Do something on every scene tick or frame.
+//   },
+// });
 
-  onShoot: function () {
-    this.bulletSystem.shoot(this.data.activeBulletType, this.el.object3D);
-  },
-
-  onChangeBullet: function (e) {
-    let t;
-    elm = this.el;
-
-    if ("next" === e.detail) {
-      if (-1 == (t = this.data.bulletTypes.indexOf(this.data.activeBulletType)))
-        return;
-      t = this.data.cycle
-        ? (t + 1) % this.data.bulletTypes.length
-        : Math.min(this.data.bulletTypes.length - 1, t + 1);
-      this.data.activeBulletType = this.data.bulletTypes[t];
-      return void elm.setAttribute(
-        "shooter",
-        "activeBulletType",
-        this.data.bulletTypes[t]
-      );
-    }
-
-    if ("prev" === e.detail) {
-      if (
-        -1 === (t = this.data.bulletTypes.indexOf(this.data.activeBulletType))
-      )
-        return;
-      t = this.data.cycle
-        ? (t - 1) % this.data.bulletTypes.length
-        : Math.max(0, t - 1);
-      this.data.activeBulletType = this.data.bulletTypes[t];
-      return void this.el.setAttribute(
-        "shooter",
-        "activeBulletType",
-        this.data.bulletTypes[t]
-      );
-    }
-    //For custom Bullet Type
-    // elm.setAttribute('shooter','activeBulletType',this.data.bulletTypes[e.detail])
-    elm.setAttribute("shooter", "activeBulletType", e.detail);
-  },
-});
-
-AFRAME.registerComponent("bullet", {
-  dependencies: ["material"],
-  schema: {
-    damage: { default: 1, type: "float" },
-    maxTime: { default: 4, type: "float" },
-    name: { default: "normal", type: "string" },
-    poolSize: { default: 10, type: "int", min: 0 }, //Number of Bullets to pre-create for performance
-    speed: { default: 8, type: "float" },
-  },
-
-  init: function () {
-    // Do something when component first attached.
-  },
-
-  update: function () {
-    // Do something when component's data is updated.
-  },
-
-  remove: function () {
-    // Do something the component or its entity is detached.
-  },
-
-  tick: function (time, timeDelta) {
-    // Do something on every scene tick or frame.
-  },
-});
-
-AFRAME.registerComponent("click-to-shoot", {
-  init: function () {
-    this.el.addEventListener("mousedown", () => {
-      this.el.emit("shoot");
-    });
-  },
-});
+// AFRAME.registerComponent("click-to-shoot", {
+//   init: function () {
+//     this.el.addEventListener("mousedown", () => {
+//       this.el.emit("shoot");
+//     });
+//   },
+// });
 
 AFRAME.registerComponent("hit-handler", {
   dependencies: ["material"],
@@ -333,8 +475,16 @@ AFRAME.registerComponent("player", {
         console.log(`Player has ${this.data.health} HP.`);
         
       }
+      this.enemies = document.querySelectorAll('.enemy');
       
     })
+    // Listen for enemy-attack event
+    this.el.addEventListener('enemy-attack', (e) => {
+      this.data.health -= e.detail.damage;
+      if (this.data.health <= 0) {
+        this.el.emit('player-die');
+      }
+    });
   },
   playerDamaged: function (e) {
     const damage = e.detail.damage;
@@ -367,25 +517,32 @@ AFRAME.registerComponent("player", {
   onKeyUp: function (event) {
     this.keys[event.code] = false;
   },
-
- 
   tick: function (time, timeDelta) {
     const el = this.el;
     const body = el.body;
     const camera = el.querySelector('a-camera');
-    const position = el.getAttribute("position");
     const speed = this.data.speed;
+    if (!body || !camera) return;
 
-    if(!body || !camera) return;
+    // Synchronize player entity position with camera world position
+    const cameraWorldPos = new THREE.Vector3();
+    camera.object3D.getWorldPosition(cameraWorldPos);
+    el.object3D.position.copy(cameraWorldPos);
+    el.setAttribute('position', `${cameraWorldPos.x} ${cameraWorldPos.y} ${cameraWorldPos.z}`);
+    // If using Ammo.js kinematic body, update transform:
+    if (body && body.ammo && body.ammo.setWorldTransform) {
+      let transform = body.ammo.getWorldTransform();
+      transform.setOrigin(new Ammo.btVector3(cameraWorldPos.x, cameraWorldPos.y, cameraWorldPos.z));
+      body.ammo.setWorldTransform(transform);
+    }
 
-    const finalDirection = new THREE.Vector3(0,0,0);
+    // Movement logic
+    let position = cameraWorldPos.clone();
     const cameraDirection = new THREE.Vector3();
     camera.object3D.getWorldDirection(cameraDirection);
-    cameraDirection.y = 0; // Project onto the XZ plane
+    cameraDirection.y = 0;
     cameraDirection.normalize();
-
-    //ai helped me in understanding it
-      const rightDirection = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), cameraDirection).normalize();
+    const rightDirection = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), cameraDirection).normalize();
 
     let zMovement = 0;
     let xMovement = 0;
@@ -394,23 +551,91 @@ AFRAME.registerComponent("player", {
     if (this.keys.KeyA) { xMovement += 1; }
     if (this.keys.KeyD) { xMovement -= 1; }
 
+    let moveVector = new THREE.Vector3();
     if (zMovement !== 0) {
-      finalDirection.add(cameraDirection.multiplyScalar(zMovement));
+      moveVector.add(cameraDirection.multiplyScalar(zMovement));
     }
     if (xMovement !== 0) {
-      finalDirection.add(rightDirection.multiplyScalar(xMovement));
+      moveVector.add(rightDirection.multiplyScalar(xMovement));
     }
 
-    const currentVelocity = body.velocity;
+    if (moveVector.length() > 0) {
+      moveVector.normalize().multiplyScalar(speed * timeDelta / 1000);
+      position.add(moveVector);
+      el.object3D.position.copy(position);
+      el.setAttribute('position', `${position.x} ${position.y} ${position.z}`);
+      // If using Ammo.js kinematic body, update transform:
+      if (body && body.ammo && body.ammo.setWorldTransform) {
+        let transform = body.ammo.getWorldTransform();
+        transform.setOrigin(new Ammo.btVector3(position.x, position.y, position.z));
+        body.ammo.setWorldTransform(transform);
+      }
+    }
 
-    if (finalDirection.length() > 0) {
-      finalDirection.normalize().multiplyScalar(speed);
-      body.velocity.set(finalDirection.x, currentVelocity.y, finalDirection.z);
-    } else {
-      // If no input, stop the player's horizontal movement
-      body.velocity.set(0, currentVelocity.y, 0);
+    // current change: damage player when near any drone
+    if (this.enemies) {
+      for (let i = 0; i < this.enemies.length; i++) {
+        const enemy = this.enemies[i];
+        const enemyPos = new THREE.Vector3();
+        enemy.object3D.getWorldPosition(enemyPos);
+        const dist = position.distanceTo(enemyPos);
+        if (dist < 1.5) {
+          // Damage player
+          if (!this._lastDamageTime || time - this._lastDamageTime > 1000) {
+            this.data.health -= 5; // Damage amount per second
+            if (this.data.health <= 0) {
+              this.el.emit('player-die');
+            }
+            this._lastDamageTime = time;
+          }
+        }
+      }
     }
   },
+
+ 
+  // tick: function (time, timeDelta) {
+  //   const el = this.el;
+  //   const body = el.body;
+  //   const camera = el.querySelector('a-camera');
+  //   const position = el.getAttribute("position");
+  //   const speed = this.data.speed;
+
+  //   if(!body || !camera) return;
+
+  //   const finalDirection = new THREE.Vector3(0,0,0);
+  //   const cameraDirection = new THREE.Vector3();
+  //   camera.object3D.getWorldDirection(cameraDirection);
+  //   cameraDirection.y = 0; // Project onto the XZ plane
+  //   cameraDirection.normalize();
+
+  //   //ai helped me in understanding it
+  //     const rightDirection = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), cameraDirection).normalize();
+
+  //   let zMovement = 0;
+  //   let xMovement = 0;
+  //   if (this.keys.KeyW) { zMovement -= 1; }
+  //   if (this.keys.KeyS) { zMovement += 1; }
+  //   if (this.keys.KeyA) { xMovement += 1; }
+  //   if (this.keys.KeyD) { xMovement -= 1; }
+
+  //   if (zMovement !== 0) {
+  //     finalDirection.add(cameraDirection.multiplyScalar(zMovement));
+  //   }
+  //   if (xMovement !== 0) {
+  //     finalDirection.add(rightDirection.multiplyScalar(xMovement));
+  //   }
+
+  //   const currentVelocity = body.velocity;
+
+  //   if (finalDirection.length() > 0) {
+  //     finalDirection.normalize().multiplyScalar(speed);
+  //     body.velocity.set(finalDirection.x, currentVelocity.y, finalDirection.z);
+  //   } else {
+  //     // If no input, stop the player's horizontal movement
+  //     body.velocity.set(0, currentVelocity.y, 0);
+  //   }
+  // },
 
   remove: function () {
     window.removeEventListener("keydown", this.onKeyDown);
@@ -576,46 +801,64 @@ AFRAME.registerSystem("bullet", {
           }
     };
   })(),
-
-  killBullet: function (e) {
-    e.visible = !1;
-  },
 });
 
-
+// Enemy spawner system: keeps at least 2 enemies in the scene
 AFRAME.registerSystem('enemy-spawner', {
   schema: {
-    minEnemies: { default: 2 }
+    minEnemies: { default: 2 },
+    planeSize: { default: 50 },
+    spawnInterval: { default: 3000 }, // ms
   },
   init: function () {
-    this.spawnInterval = 2000; // ms
     this.lastSpawn = 0;
-    this.enemyClass = 'enemy';
-    this.enemyPositions = [
-      {x: -10, y: 1, z: -10},
-      {x: 10, y: 1, z: -10},
-      {x: -10, y: 1, z: 10},
-      {x: 10, y: 1, z: 10},
-      {x: 0, y: 1, z: -20},
-      {x: 0, y: 1, z: 20}
-    ];
+    this.enemies = [];
+    this.player = document.querySelector('#player');
+    this.el.sceneEl.addEventListener('enemy-die', () => {
+      setTimeout(() => this.checkAndSpawn(), 500);
+    });
+    this.checkAndSpawn();
   },
   tick: function (time, timeDelta) {
-    const enemies = document.querySelectorAll('.enemy');
-    if (enemies.length < this.data.minEnemies && time - this.lastSpawn > this.spawnInterval) {
-      this.spawnEnemy();
+    if (time - this.lastSpawn > this.data.spawnInterval) {
+      this.checkAndSpawn();
       this.lastSpawn = time;
     }
   },
+  checkAndSpawn: function () {
+    const currentEnemies = document.querySelectorAll('.enemy');
+    if (currentEnemies.length < this.data.minEnemies) {
+      this.spawnEnemy();
+    }
+  },
   spawnEnemy: function () {
-    const pos = this.enemyPositions[Math.floor(Math.random() * this.enemyPositions.length)];
-    const scene = this.el.sceneEl;
+    const planeSize = this.data.planeSize;
+    const x = (Math.random() - 0.5) * planeSize;
+    const z = (Math.random() - 0.5) * planeSize;
+    const y = 1.2;
     const enemy = document.createElement('a-entity');
-    enemy.setAttribute('dynamic-body', 'mass:2; shape:box;');
     enemy.setAttribute('class', 'enemy');
+    enemy.setAttribute('position', `${x} ${y} ${z}`);
+    enemy.setAttribute('dynamic-body', 'mass:2; shape:box; linearDamping:0.05; angularDamping:0.9');
     enemy.setAttribute('enemy', '');
-    enemy.setAttribute('position', `${pos.x} ${pos.y} ${pos.z}`);
-    enemy.innerHTML = '<a-gltf-model src="#drone" scale="0.5 0.5 0.5"></a-gltf-model>';
-    scene.appendChild(enemy);
+    enemy.setAttribute('scale', '0.5 0.5 0.5');
+    // Add hidden box geometry for physics
+    var box = document.createElement('a-box');
+    box.setAttribute('width', '1');
+    box.setAttribute('height', '1');
+    box.setAttribute('depth', '1');
+    box.setAttribute('visible', 'false');
+    enemy.appendChild(box);
+    // Add GLTF model
+    var model = document.createElement('a-gltf-model');
+    model.setAttribute('src', '#drone');
+    model.setAttribute('position', '0 0 0');
+    model.setAttribute('scale', '1 1 1');
+    model.setAttribute('shadow', 'cast:true;');
+    enemy.appendChild(model);
+    enemy.addEventListener('body-loaded', () => {
+      console.log('Enemy body loaded:', enemy);
+    });
+    this.el.sceneEl.appendChild(enemy);
   }
 });
