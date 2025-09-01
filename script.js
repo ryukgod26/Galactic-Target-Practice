@@ -111,8 +111,8 @@ AFRAME.registerComponent('enemy', {
 // Speed-up powerup system
 AFRAME.registerSystem('speedup-spawner', {
   schema: {
-    spawnInterval: { default: 40000 }, // ms (40 seconds)
-    randomExtra: { default: 10000 }, // ms (up to 10 seconds extra)
+    spawnInterval: { default: 20000 }, // ms (20 seconds)
+    randomExtra: { default: 5000 }, // ms (up to 5 seconds extra)
     planeSize: { default: 50 },
   },
   init: function () {
@@ -144,36 +144,75 @@ AFRAME.registerSystem('speedup-spawner', {
     const speedup = document.createElement('a-entity');
     speedup.setAttribute('id', 'speedup-powerup');
     speedup.setAttribute('position', `${x} ${y} ${z}`);
-  speedup.setAttribute('gltf-model', '#speed_up');
-  speedup.setAttribute('scale', '0.5 0.5 0.5');
-  speedup.setAttribute('speedup', '');
+    speedup.setAttribute('gltf-model', '#speed_up');
+    speedup.setAttribute('scale', '0.5 0.5 0.5');
+    speedup.setAttribute('speedup', '');
     this.el.sceneEl.appendChild(speedup);
     this.speedupEntity = speedup;
-    // Remove after 10 seconds if not picked up
-      setTimeout(() => {
-        speedup.setAttribute('gltf-model', '#speed_up');
-        speedup.setAttribute('scale', '0.5 0.5 0.5');
+    // Remove after 15 seconds if not picked up
+    setTimeout(() => {
       if (this.speedupEntity && this.speedupEntity.parentNode) {
         this.speedupEntity.parentNode.removeChild(this.speedupEntity);
         this.speedupEntity = null;
         this.nextInterval = this.data.spawnInterval + Math.random() * this.data.randomExtra;
         this.lastSpawn = performance.now();
       }
-    }, 10000);
+    }, 15000);
   }
 });
 
 // Speedup powerup component
 AFRAME.registerComponent('speedup', {
   init: function () {
+    this.player = document.querySelector('#player');
+    this.activated = false;
+    
+    // Keep click functionality as backup
     this.el.addEventListener('click', () => {
-      const player = document.querySelector('#player');
-      if (player) {
-        let playerData = player.getAttribute('player');
-        player.setAttribute('player', 'speed', playerData.speed + 10);
-      }
-      this.el.sceneEl.emit('speedup-picked');
+      this.activateSpeedup();
     });
+  },
+  
+  tick: function () {
+    if (this.activated || !this.player) return;
+    
+    // Check distance to player
+    const playerPos = new THREE.Vector3();
+    const speedupPos = new THREE.Vector3();
+    
+    this.player.object3D.getWorldPosition(playerPos);
+    this.el.object3D.getWorldPosition(speedupPos);
+    
+    const distance = playerPos.distanceTo(speedupPos);
+    
+    // Activate if player is within 1.5 units
+    if (distance < 1.5) {
+      this.activateSpeedup();
+    }
+  },
+  
+  activateSpeedup: function () {
+    if (this.activated) return;
+    this.activated = true;
+    
+    if (this.player) {
+      let playerData = this.player.getAttribute('player');
+      let newSpeed = playerData.speed + 2; // Increase speed by 2
+      this.player.setAttribute('player', 'speed', newSpeed);
+      console.log(`Speed boost collected! Player speed increased to: ${newSpeed}`);
+      
+      // Reset speed after some time
+      setTimeout(() => {
+        if (this.player) {
+          let currentData = this.player.getAttribute('player');
+          let resetSpeed = Math.max(5, currentData.speed - 2); // Don't go below base speed of 5
+          this.player.setAttribute('player', 'speed', resetSpeed);
+          console.log(`Speed boost expired. Player speed reset to: ${resetSpeed}`);
+        }
+      }, 10000); // Speed boost lasts 10 seconds
+    }
+    
+    this.el.sceneEl.emit('speedup-picked');
   }
 });
 // Target component for enemies to allow bullet collision
@@ -248,15 +287,72 @@ AFRAME.registerSystem('potion-spawner', {
 // current change: potion component for pickup
 AFRAME.registerComponent('potion', {
   init: function () {
+    this.player = document.querySelector('#player');
+    this.activated = false;
+    
+    // Keep click functionality as backup
     this.el.addEventListener('click', () => {
-      // Increase player health
+      this.activatePotion();
+    });
+  },
+  
+  tick: function () {
+    if (this.activated || !this.player) return;
+    
+    // Check distance to player
+    const playerPos = new THREE.Vector3();
+    const potionPos = new THREE.Vector3();
+    
+    this.player.object3D.getWorldPosition(playerPos);
+    this.el.object3D.getWorldPosition(potionPos);
+    
+    const distance = playerPos.distanceTo(potionPos);
+    
+    // Activate if player is within 1.5 units
+    if (distance < 1.5) {
+      this.activatePotion();
+    }
+  },
+  
+  activatePotion: function () {
+    if (this.activated) return;
+    this.activated = true;
+    
+    // Increase player health
+    if (this.player) {
+      let playerData = this.player.getAttribute('player');
+      this.player.setAttribute('player', 'health', Math.min(playerData.health + 40, 100));
+      console.log('Health potion collected! Health restored.');
+    }
+    
+    // Remove potion
+    this.el.sceneEl.emit('potion-picked');
+  }
+});
+
+// Restart button component
+AFRAME.registerComponent('restart-button', {
+  init: function () {
+    this.el.addEventListener('click', () => {
+      // Show the game over UI which contains restart functionality
+      const gameOverUI = document.querySelector('#game-over-ui');
       const player = document.querySelector('#player');
-      if (player) {
-        let playerData = player.getAttribute('player');
-        player.setAttribute('player', 'health', Math.min(playerData.health + 40, 100));
+      const scoreText = document.querySelector('#score-text');
+      const highScoreText = document.querySelector('#high-score-text');
+      
+      if (gameOverUI && player && scoreText && highScoreText) {
+        const currentScore = player.getAttribute('player').score;
+        let highScore = localStorage.getItem('highScore') || 0;
+        
+        if (currentScore > highScore) {
+          highScore = currentScore;
+          localStorage.setItem('highScore', highScore);
+        }
+        
+        scoreText.setAttribute('value', `Your Score: ${currentScore}`);
+        highScoreText.setAttribute('value', `High Score: ${highScore}`);
+        gameOverUI.setAttribute('visible', true);
       }
-      // Remove potion
-      this.el.sceneEl.emit('potion-picked');
     });
   }
 });
@@ -652,6 +748,7 @@ AFRAME.registerComponent("game-manager", {
     this.scoreText = document.querySelector("#score-text");
     this.highScoreText = document.querySelector("#high-score-text");
 
+    
     this.player.addEventListener("player-die", this.onPlayerDie.bind(this));
     this.restartButton.addEventListener("click", () => {
       window.location.reload();
